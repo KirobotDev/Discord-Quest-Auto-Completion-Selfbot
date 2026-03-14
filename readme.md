@@ -50,9 +50,6 @@ Replace the token inside `.env`.
 npm run start
 ```
 
-> [!TIP]
-> ~~The current [bot.ts](bot.ts) is configured to redeem rewards by default. To run auto-completion instead, switch to the quest execution block in that file.~~
-
 ## 📤 Example Output
 
 After completion, your output may look like this:

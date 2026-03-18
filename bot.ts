@@ -22,7 +22,8 @@ client.on(
 
 client.once(GatewayDispatchEvents.Ready, async ({ data, api }) => {
 	currentUserId = data.user.id;
-	console.log(`Logged in as @${data.user.username}`);
+	// console.log(`Logged in as @${data.user.username}`);
+	console.log('Logged in!');
 
 	await client.fetchQuests(false);
 	const questsValid = client.questManager!.filterQuestsValidToDo();
@@ -44,6 +45,14 @@ client.once(GatewayDispatchEvents.Ready, async ({ data, api }) => {
 	// Disconnect
 	console.log('All quests processed. Disconnecting...');
 	await client.destroy();
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+	console.error('[Error:] Unhandled Rejection');
+});
+
+process.on('uncaughtException', (error) => {
+	console.error('Uncaught Exception:', error.message);
 });
 
 client.connect();

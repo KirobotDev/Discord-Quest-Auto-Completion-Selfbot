@@ -61,7 +61,7 @@ export class QuestManager implements Iterable<Quest> {
 			.catch((err) => {
 				console.error(
 					`Failed to fetch excluded quest "${questId}".`,
-					err,
+					err.message,
 				);
 			});
 	}
@@ -262,7 +262,7 @@ export class QuestManager implements Iterable<Quest> {
 			} else {
 				console.error(
 					`Failed to redeem rewards for quest "${quest.config.messages.quest_name}".`,
-					err,
+					err.message,
 				);
 			}
 		}

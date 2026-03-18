@@ -105,7 +105,7 @@ export class Utils extends null {
 			)
 			.then((data) => data.token)
 			.catch((e) => {
-				error = e;
+				error = e instanceof Error ? e.message : String(e);
 				return '';
 			});
 		return { token, error };
@@ -129,7 +129,7 @@ export class Utils extends null {
 		)
 			.then((res) => res.ok)
 			.catch((e) => {
-				error = e;
+				error = e instanceof Error ? e.message : String(e);
 				return false;
 			});
 		return { success, error };
@@ -192,7 +192,9 @@ export class Utils extends null {
 			console.warn('Build number not found in any JS assets.');
 			return;
 		} catch (error) {
-			console.error('Error fetching latest build number:', error);
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			console.error('Error fetching latest build number:', errorMessage);
 			return;
 		}
 	}

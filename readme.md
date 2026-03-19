@@ -82,6 +82,11 @@ npm run start
 
 ### You're all set! After completing these steps, the bot will automatically run every day at **00:15 UTC**. If you want to run it manually, you can still trigger the workflow yourself from the Actions tab.
 
+> [!IMPORTANT]
+> On forked repositories, scheduled workflows can be automatically disabled after a long period of inactivity (especially on public repositories).
+>
+> If the schedule does not run, re-enable the workflow in the **Actions** tab and push a tiny commit to your default branch (for example, a small README typo fix) to wake the scheduler.
+
 <img width="1920" height="592" alt="10" src="https://github.com/user-attachments/assets/76ba5c5f-f534-48aa-87ad-f7df2b710e88" />
 <img width="1920" height="912" alt="11" src="https://github.com/user-attachments/assets/e500b38e-1b84-4a16-8035-cd6653da0758" />
 

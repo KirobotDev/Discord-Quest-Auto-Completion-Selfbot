@@ -20,7 +20,8 @@ client.on(
 );
 */
 
-client.once(GatewayDispatchEvents.Ready, async ({ data, api }) => {
+// Main entry point logic fetches quests, filters them, and starts execution
+client.once(GatewayDispatchEvents.Ready, async ({ data }) => {
 	currentUserId = data.user.id;
 	// console.log(`Logged in as @${data.user.username}`);
 	console.log('Logged in!');
@@ -47,11 +48,11 @@ client.once(GatewayDispatchEvents.Ready, async ({ data, api }) => {
 	await client.destroy();
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-	console.error('[Error:] Unhandled Rejection');
+process.on('unhandledRejection', (reason: unknown) => {
+	console.error('[Error:] Unhandled Rejection', reason);
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', (error: Error) => {
 	console.error('Uncaught Exception:', error.message);
 });
 

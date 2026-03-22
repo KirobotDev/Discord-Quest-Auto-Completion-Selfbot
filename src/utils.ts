@@ -143,6 +143,7 @@ export class Utils extends null {
 			rl.close();
 		}
 	}
+	// Dynamically fetches the latest Discord client build number to stay undetected.
 	public static async updateLatestBuildVersion(): Promise<void> {
 		try {
 			console.info(

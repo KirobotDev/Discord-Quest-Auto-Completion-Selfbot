@@ -3,7 +3,9 @@ import { ClientQuest } from './client';
 import type {
 	AllQuestsResponse,
 	CaptchaDataFromRequest,
+	QuestConfig,
 	QuestTaskConfigType,
+	QuestUserStatus,
 } from './interface';
 import { Quest } from './quest';
 import { Utils } from './utils';
@@ -45,10 +47,10 @@ export class QuestManager implements Iterable<Quest> {
 		// fetch quest details and add to quests
 		return this.client.rest
 			.get(`/quests/${questId}`)
-			.then((response) => {
+			.then((response: unknown) => {
 				const quest = Quest.create({
 					id: questId,
-					config: response as any,
+					config: response as QuestConfig,
 					user_status: null,
 					targeted_content: 0,
 					preview: false,
@@ -58,7 +60,7 @@ export class QuestManager implements Iterable<Quest> {
 				);
 				this.quests.set(quest.id, quest);
 			})
-			.catch((err) => {
+			.catch((err: Error) => {
 				console.error(
 					`Failed to fetch excluded quest "${questId}".`,
 					err.message,
@@ -149,6 +151,7 @@ export class QuestManager implements Iterable<Quest> {
 	 * Enroll in a quest.
 	 * @param questId string
 	 * @param isAndroid boolean
+	 * 
 	 * @warning This API is heavily rate-limited (1 hour). Use with caution.
 	 */
 	acceptQuest(
@@ -169,9 +172,9 @@ export class QuestManager implements Iterable<Quest> {
 					AndroidRequest: isAndroid ? 'true' : 'false',
 				},
 			})
-			.then((r) => {
+			.then((r: unknown) => {
 				const quest = this.get(questId);
-				quest?.updateUserStatus(r as any);
+				quest?.updateUserStatus(r as QuestUserStatus);
 				return quest;
 			});
 	}
@@ -237,14 +240,15 @@ export class QuestManager implements Iterable<Quest> {
 					headers: captchaHeaders,
 					dispatcher: agent,
 				},
-			)) as any;
+			)) as QuestUserStatus;
 			console.log(
 				`Claimed rewards for quest "${quest.config.messages.quest_name}"!`,
 			);
 			quest.updateUserStatus(res);
-		} catch (err: any) {
-			const rawError = err.rawError as CaptchaDataFromRequest;
-			if (rawError['captcha_key'] && rawError['captcha_sitekey']) {
+		} catch (err: unknown) {
+			const rawError = (err as { rawError: CaptchaDataFromRequest })
+				.rawError;
+			if (rawError && rawError['captcha_key'] && rawError['captcha_sitekey']) {
 				console.warn(
 					`Captcha required to redeem rewards for quest "${quest.config.messages.quest_name}".`,
 					rawError,
@@ -262,7 +266,7 @@ export class QuestManager implements Iterable<Quest> {
 			} else {
 				console.error(
 					`Failed to redeem rewards for quest "${quest.config.messages.quest_name}".`,
-					err.message,
+					(err as Error).message,
 				);
 			}
 		}
@@ -389,7 +393,7 @@ export class QuestManager implements Iterable<Quest> {
 								),
 							},
 						},
-					)) as any;
+					)) as QuestUserStatus;
 					completed = res.completed_at != null;
 					secondsDone = Math.min(secondsNeeded, timestamp);
 				}
@@ -420,42 +424,15 @@ export class QuestManager implements Iterable<Quest> {
 		taskName: string,
 		applicationName: string,
 	) {
-		const interval = 20;
-		while (!quest.isCompleted()) {
-			const secondsDone =
-				(quest.userStatus?.progress?.[taskName]?.value as number) || 0;
-			const res = await this.client.rest.post(
-				`/quests/${quest.id}/heartbeat`,
-				{
-					body: {
-						application_id: quest.config.application.id,
-						terminal: false,
-					},
-				},
-			);
-			quest.updateUserStatus(res as any);
-			console.log(
-				`Spoofed your game to ${applicationName}. Wait for ${Math.ceil(
-					(secondsNeeded - secondsDone) / 60,
-				)} more minute(s).`,
-			);
-			await new Promise((resolve) =>
-				setTimeout(resolve, interval * 1000),
-			);
-		}
-		const res = await this.client.rest.post(
-			`/quests/${quest.id}/heartbeat`,
-			{
-				body: {
-					application_id: quest.config.application.id,
-					terminal: true,
-				},
-			},
+		await this.performHeartbeatLoop(
+			quest,
+			{ application_id: quest.config.application.id },
+			applicationName,
+			taskName,
+			secondsNeeded,
 		);
-		quest.updateUserStatus(res as any);
-		console.log(`Quest "${questName}" completed!`);
-		this.client.emitQuestCompleted(quest.id);
 	}
+
 	async doingPlayActivityQuest(
 		quest: Quest,
 		questName: string,
@@ -463,35 +440,50 @@ export class QuestManager implements Iterable<Quest> {
 		taskName: string,
 		applicationName: string,
 	) {
-		const interval = 20;
 		const streamKey = 'call:1:1'; // Todo: call:channel_id:user_id | guild:guild_id:channel_id:user_id
+		await this.performHeartbeatLoop(
+			quest,
+			{ stream_key: streamKey },
+			applicationName,
+			taskName,
+			secondsNeeded,
+		);
+	}
+
+	 // Sends heartbeat signals to Discord to spoof game or activity progress.
+	private async performHeartbeatLoop(
+		quest: Quest,
+		payload: { application_id?: string; stream_key?: string },
+		applicationName: string,
+		taskName: string,
+		secondsNeeded: number,
+		interval = 20,
+	): Promise<void> {
 		while (!quest.isCompleted()) {
 			const secondsDone =
 				(quest.userStatus?.progress?.[taskName]?.value as number) || 0;
-			const res = await this.client.rest.post(
+			const res = (await this.client.rest.post(
 				`/quests/${quest.id}/heartbeat`,
 				{
-					body: { stream_key: streamKey, terminal: false },
+					body: { ...payload, terminal: false },
 				},
-			);
-			quest.updateUserStatus(res as any);
+			)) as QuestUserStatus;
+			quest.updateUserStatus(res);
 			console.log(
-				`Spoofed your activity to ${applicationName}. Wait for ${Math.ceil(
+				`Spoofed your ${payload.application_id ? 'game' : 'activity'} to ${applicationName}. Wait for ${Math.ceil(
 					(secondsNeeded - secondsDone) / 60,
 				)} more minute(s).`,
 			);
-			await new Promise((resolve) =>
-				setTimeout(resolve, interval * 1000),
-			);
+			await this.timeout(interval * 1000);
 		}
-		const res = await this.client.rest.post(
+		const res = (await this.client.rest.post(
 			`/quests/${quest.id}/heartbeat`,
 			{
-				body: { stream_key: streamKey, terminal: true },
+				body: { ...payload, terminal: true },
 			},
-		);
-		quest.updateUserStatus(res as any);
-		console.log(`Quest "${questName}" completed!`);
+		)) as QuestUserStatus;
+		quest.updateUserStatus(res);
+		console.log(`Quest "${quest.config.messages.quest_name}" completed!`);
 		this.client.emitQuestCompleted(quest.id);
 	}
 	async doingAchievementInActivityQuest(quest: Quest, questName: string) {
@@ -519,7 +511,7 @@ export class QuestManager implements Iterable<Quest> {
 					channel_type: 10000,
 				},
 			},
-		})) as Record<string, any>;
+		})) as { location?: string };
 		console.log(`Authorized application ${applicationName}`);
 		const location = res2?.location;
 		let authCode: string | null = null;

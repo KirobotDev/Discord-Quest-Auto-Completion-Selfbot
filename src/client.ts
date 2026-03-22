@@ -7,6 +7,7 @@ import { QuestManager } from './questManager';
 import { AllQuestsResponse } from './interface';
 import { Constants } from './constants';
 import { Utils } from './utils';
+import type { RateLimitData } from '@discordjs/rest';
 
 async function makeRequest(
 	url: string,
@@ -19,6 +20,7 @@ async function makeRequest(
 	return DefaultRestOptions.makeRequest(url, init);
 }
 
+// Overrides the Identify payload to spoof the official Discord client properties.
 const originalSend = WebSocketShard.prototype.send;
 WebSocketShard.prototype.send = async function (payload: GatewaySendPayload) {
 	if (payload.op === GatewayOpcodes.Identify) {
@@ -50,8 +52,8 @@ export class ClientQuest extends Client {
 		if (!token) {
 			throw new Error('Token is required to initialize the client.');
 		}
-		const rest = new REST({ version: '10', makeRequest }).setToken(token);
-		rest.on('rateLimited', (info: any) => {
+		const rest = new REST({ name: '10', makeRequest }).setToken(token);
+		rest.on('rateLimited', (info: RateLimitData) => {
 			console.warn(
 				`\n[RateLimit]\n` +
 					`  -> Route: ${info.method} ${info.route}\n` +
@@ -87,7 +89,7 @@ export class ClientQuest extends Client {
 		return Promise.allSettled([
 			Utils.updateLatestBuildVersion(),
 			this.setupWebhook(),
-		]).then(() => this.websocketManager.connect()).catch((e) => {
+		]).then(() => this.websocketManager.connect()).catch((e: Error) => {
 			console.error('Error during client connection:', e.message);
 			return this.sendWebhookMessage('Error during client connection: ' + e.message);
 		});
@@ -107,14 +109,14 @@ export class ClientQuest extends Client {
 	fetchQuests(fetchExcludedQuests = false) {
 		return this.rest
 			.get('/quests/@me')
-			.then((response) =>
+			.then((response: unknown) =>
 				QuestManager.fromResponse(
 					this,
 					response as AllQuestsResponse,
 					fetchExcludedQuests,
 				),
 			)
-			.then((manager) => {
+			.then((manager: QuestManager) => {
 				this.questManager = manager;
 				return manager;
 			});

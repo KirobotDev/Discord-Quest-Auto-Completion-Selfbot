@@ -10,6 +10,7 @@ if (process.env.YES_CAPTCHA_API_KEY) {
 	yesCaptchaClient = new YesCaptchaSolver(process.env.YES_CAPTCHA_API_KEY);
 }
 
+// Handles captcha solving uses YesCaptcha if available else falls back to manual input.
 export function solveCaptcha(data: CaptchaDataFromRequest): Promise<string> {
 	// ! its ok
 	// return Utils.askQuestion("Enter the Captcha Key manually: ");
